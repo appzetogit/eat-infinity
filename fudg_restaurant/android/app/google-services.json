@@ -1,0 +1,68 @@
+{
+  "project_info": {
+    "project_number": "464440787714",
+    "firebase_url": "https://minto-805bd-default-rtdb.firebaseio.com",
+    "project_id": "minto-805bd",
+    "storage_bucket": "minto-805bd.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:464440787714:android:834aa28efce06dfa2df81b",
+        "android_client_info": {
+          "package_name": "com.minto.delivery"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCyKZnq1zsjDI_ALpsyh8QFeX71pESAMO8"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:464440787714:android:711a7fbe247172d72df81b",
+        "android_client_info": {
+          "package_name": "com.minto.restaurant"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCyKZnq1zsjDI_ALpsyh8QFeX71pESAMO8"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:464440787714:android:45ea036dddfd77612df81b",
+        "android_client_info": {
+          "package_name": "com.minto.user"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCyKZnq1zsjDI_ALpsyh8QFeX71pESAMO8"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

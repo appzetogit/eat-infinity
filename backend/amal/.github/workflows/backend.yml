@@ -1,0 +1,84 @@
+# The backend test suite, on every push and pull request.
+#
+# The suite talks to a real Postgres rather than a mock. Most of the bugs this
+# migration turned up — an enum value that never existed, a filter on a dropped
+# column, a Decimal compared against a string — are ones only a real database
+# reports, so CI runs one too.
+name: backend
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: write
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        # postgis, matching docker-compose.yml: delivery zones are polygons.
+        image: postgis/postgis:16-3.4
+        env:
+          POSTGRES_USER: minto
+          POSTGRES_PASSWORD: minto
+          POSTGRES_DB: minto
+        ports:
+          - 5432:5432
+        # Without the health check the first migration races the server's
+        # startup and fails on a connection the runner has not opened yet.
+        options: >-
+          --health-cmd "pg_isready -U minto -d minto"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    defaults:
+      run:
+        working-directory: Backend
+
+    env:
+      DATABASE_URL: postgresql://minto:minto@localhost:5432/minto?schema=public
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: Backend/package-lock.json
+
+      - run: npm ci
+
+      # migrate deploy, not migrate dev: CI applies the committed migrations and
+      # fails on a drift rather than inventing one to paper over it.
+      - name: Apply migrations
+        run: npm run db:migrate
+
+      - name: Test
+        id: test
+        run: npm test 2>&1 | tee /tmp/test-output.txt; exit ${PIPESTATUS[0]}
+
+      # A failing run is only useful if the failure can be read. Downloading
+      # workflow logs needs a token, so the failing assertions are posted to the
+      # commit instead, where anyone looking at it can see them.
+      - name: Report failures on the commit
+        if: failure()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          {
+            echo 'Backend CI failed.'
+            echo
+            echo '```'
+            grep -E '^not ok|^# (tests|pass|fail)' /tmp/test-output.txt | head -40 || true
+            echo
+            grep -B 2 -A 18 '^not ok' /tmp/test-output.txt | head -120 || true
+            echo '```'
+          } > /tmp/comment.md
+          python3 -c "import json,sys; print(json.dumps({'body': open('/tmp/comment.md').read()[:60000]}))" > /tmp/comment.json
+          curl -sS -X POST             -H "Authorization: Bearer $GH_TOKEN"             -H "Accept: application/vnd.github+json"             "https://api.github.com/repos/${{ github.repository }}/commits/${{ github.sha }}/comments"             -d @/tmp/comment.json > /dev/null

@@ -1,0 +1,247 @@
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Lato:wght@400;700&family=Manrope:wght@400;500;600;700&family=Merriweather:wght@400;700&family=Montserrat:wght@400;500;600;700&family=Nunito:wght@400;600;700&family=Open+Sans:wght@400;600;700&family=Outfit:wght@400;500;600;700&family=Playfair+Display:wght@400;600;700&family=Poppins:wght@400;500;600;700&family=Raleway:wght@400;500;600;700&family=Roboto:wght@400;500;700&family=Rubik:wght@400;500;700&family=Ubuntu:wght@400;500;700&family=Work+Sans:wght@400;500;600;700&display=swap");
+@import "tailwindcss";
+/* The CMS pages (terms, privacy, refund and the rest) are written against
+   prose-* classes, and without this plugin every one of them is a no-op:
+   the admin-authored headings and lists render as flat unstyled text. */
+@plugin "@tailwindcss/typography";
+@import "tw-animate-css";
+@import "leaflet/dist/leaflet.css";
+
+@custom-variant dark (&:is(.dark *));
+
+:root {
+  font-family: 'Poppins', system-ui, Avenir, Helvetica, Arial, sans-serif;
+  --font-poppins: 'Poppins', sans-serif;
+  --font-outfit: 'Outfit', sans-serif;
+  line-height: 1.5;
+  font-weight: 400;
+
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  --radius: 0.625rem;
+  
+  --background: #ffffff;
+  --foreground: oklch(0.2 0.03 190);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.2 0.03 190);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.2 0.03 190);
+  --primary: oklch(0.7 0.12 185);
+  --primary-foreground: oklch(0.15 0.03 190);
+  --secondary: oklch(0.95 0.02 185);
+  --secondary-foreground: oklch(0.3 0.06 190);
+  --muted: oklch(0.96 0.01 185);
+  --muted-foreground: oklch(0.5 0.03 190);
+  --accent: oklch(0.92 0.06 185);
+  --accent-foreground: oklch(0.25 0.05 190);
+  --destructive: oklch(0.577 0.245 27.325);
+  --border: oklch(0.9 0.02 185);
+  --input: oklch(0.95 0.01 185);
+  --ring: oklch(0.7 0.12 185);
+  --sidebar: oklch(0.98 0.01 185);
+  --sidebar-foreground: oklch(0.2 0.03 190);
+  --sidebar-primary: oklch(0.7 0.12 185);
+  --sidebar-primary-foreground: oklch(0.15 0.03 190);
+  --sidebar-accent: oklch(0.95 0.02 185);
+  --sidebar-accent-foreground: oklch(0.3 0.06 190);
+  --sidebar-border: oklch(0.9 0.02 185);
+  --sidebar-ring: oklch(0.7 0.12 185);
+}
+
+@theme inline {
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+  
+  --color-page-bg: #ffffff;
+  --color-primary-orange: #dc2626;
+  --font-poppins: var(--font-poppins);
+  --font-outfit: var(--font-outfit);
+}
+
+.dark {
+  --background: oklch(0.145 0 0);
+  --foreground: oklch(0.985 0 0);
+  --card: oklch(0.205 0 0);
+  --card-foreground: oklch(0.985 0 0);
+  --popover: oklch(0.205 0 0);
+  --popover-foreground: oklch(0.985 0 0);
+  --primary: oklch(0.75 0.13 185);
+  --primary-foreground: oklch(0.205 0 0);
+  --secondary: oklch(0.269 0 0);
+  --secondary-foreground: oklch(0.985 0 0);
+  --muted: oklch(0.269 0 0);
+  --muted-foreground: oklch(0.708 0 0);
+  --accent: oklch(0.269 0 0);
+  --accent-foreground: oklch(0.985 0 0);
+  --destructive: oklch(0.704 0.191 22.216);
+  --border: oklch(1 0 0 / 10%);
+  --input: oklch(1 0 0 / 15%);
+  --ring: oklch(0.62 0.10 185);
+  --sidebar: oklch(0.205 0 0);
+  --sidebar-foreground: oklch(0.985 0 0);
+  --sidebar-primary: oklch(0.62 0.12 185);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.269 0 0);
+  --sidebar-accent-foreground: oklch(0.985 0 0);
+  --sidebar-border: oklch(1 0 0 / 10%);
+  --sidebar-ring: oklch(0.62 0.10 185);
+}
+
+@layer base {
+  html {
+    scroll-behavior: auto;
+  }
+
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground m-0 min-h-screen;
+  }
+}
+
+@layer utilities {
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+
+  .content-auto {
+    content-visibility: auto;
+    contain-intrinsic-size: 1px 720px;
+  }
+  
+  @keyframes scroll {
+    0% { transform: translateX(0); }
+    100% { transform: translateX(-50%); }
+  }
+  
+  .animate-scroll {
+    animation: scroll 15s linear infinite;
+  }
+}
+
+@keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes fade-in-up { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes slide-in-left { from { opacity: 0; transform: translateX(-30px); } to { opacity: 1; transform: translateX(0); } }
+@keyframes fade-down { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes shimmer { 100% { transform: translateX(100%); } }
+
+.animate-fade-in { animation: fade-in 0.6s ease-out; }
+.animate-fade-in-up { animation: fade-in-up 0.6s ease-out; }
+.animate-slide-in-left { animation: slide-in-left 0.8s ease-out; }
+.animate-fade-down { animation: fade-down 0.5s ease-out; }
+
+.leaflet-container { height: 100%; width: 100%; z-index: 1; }
+.custom-marker { background: transparent; border: none; }
+.touch-none { touch-action: none; }
+.touch-pan-x { touch-action: pan-x; }
+
+/* Google Places Autocomplete dropdown should overlay modals */
+.pac-container {
+  z-index: 999999 !important;
+  pointer-events: auto !important;
+}
+
+/* ── Admin tables: header rows stay put while the rows scroll ─────────────────
+ *
+ * The header used to scroll away with the page, so on a long table you lost
+ * track of which column you were reading.
+ *
+ * Making `th` sticky is only half of it. These tables sit in `overflow-x-auto`
+ * wrappers, and a box with `overflow-x: auto` computes `overflow-y: auto` too --
+ * so the wrapper is already a scroll container, and a sticky child sticks to
+ * *it* rather than to the page. With no height on the wrapper it never scrolls
+ * vertically, the page scrolls instead, and the header goes with it. Giving the
+ * wrapper a height is what makes the sticky header engage.
+ *
+ * Scoped to `main` on purpose: dialogs portal to the body, and a viewport-based
+ * height inside a modal fights the modal's own scrolling.
+ */
+/* Admin pages are wrapped in `min-h-screen`, which is a full viewport -- but
+ * they are not laid out against the viewport. They live inside <main>, which is
+ * the scroll container and is already a header shorter than the screen. So the
+ * wrapper forced every page to be taller than the box holding it by exactly the
+ * height of the header: a scrollbar on every screen, and a band of empty page
+ * under the content once you reached the bottom of it.
+ *
+ * Against its own container instead. 120 admin pages carry the class, so this
+ * is the one place to say it. */
+main .min-h-screen {
+  min-height: 100%;
+}
+
+main .overflow-x-auto:has(> table) {
+  /* The variable is measured per table -- see useFitTablesToViewport -- because
+   * one constant cannot describe the chrome above every table: a page with nine
+   * stat cards over it and a page with only a title do not have the same room
+   * left. The fallback is that constant, which is what applies before the
+   * measurement lands. Its floor matters: in a short window the subtraction goes
+   * negative and clamps to zero, hiding the table outright. */
+  max-height: var(--table-max-h, max(12rem, calc(100vh - 20rem)));
+  overflow-y: auto;
+  /* `top: 0` on the header means the top of this box's content, so a wrapper
+   * padded on all sides parks the header below its own edge and leaves a strip
+   * that rows scroll through in full view. The side and bottom padding stay;
+   * only the top has to go, and the header sitting flush is what a pinned
+   * header should look like anyway. */
+  padding-top: 0;
+}
+
+/* Admin tables read at 12-13px, which is small for a screen somebody works in
+ * all day and reads money off. A step up on the cells and the headers, set here
+ * rather than on each of the forty-odd tables. Unlayered, so it wins over the
+ * utility classes on the cells without needing !important. */
+main .overflow-x-auto > table > tbody td {
+  font-size: 0.9375rem;
+  line-height: 1.4;
+}
+
+main .overflow-x-auto > table > thead th {
+  font-size: 0.8125rem;
+}
+
+main .overflow-x-auto > table > thead th {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  /* An opaque background, or rows show through as they pass underneath. This
+   * is slate-50, which is what all but a handful of these theads already set. */
+  background-color: #f8fafc;
+  /* A border on `thead` does not travel with a sticky `th`; an inset shadow
+   * does, so the divider under the header survives scrolling. */
+  box-shadow: inset 0 -1px 0 #e2e8f0;
+}
