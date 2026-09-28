@@ -1939,6 +1939,10 @@ model FoodOffer {
   status     OfferStatus @default(active)
   showInCart Boolean     @default(true)
 
+  /// Card artwork for the customer Offers page. Optional: without one the card
+  /// falls back to the restaurant's photo.
+  imageUrl String @default("")
+
   createdByRole            CreatorRole @default(ADMIN)
   adminBearPercentage      Decimal     @default(100) @db.Decimal(5, 2)
   restaurantBearPercentage Decimal     @default(0) @db.Decimal(5, 2)
@@ -2127,7 +2131,7 @@ model DeliveryFeeBand {
 model FoodBusinessSettings {
   id String @id @default(dbgenerated("encode(gen_random_bytes(12), 'hex')")) @db.VarChar(24)
 
-  companyName      String @default("Eatinfinity")
+  companyName      String @default("Amal Foods")
   email            String @default("admin@mintofood.com")
   phoneCountryCode String @default("+91") @db.VarChar(8)
   phoneNumber      String @default("") @db.VarChar(20)
@@ -3148,8 +3152,12 @@ model FoodDiningBanner {
 model HomePromotionBanner {
   id String @id @default(dbgenerated("encode(gen_random_bytes(12), 'hex')")) @db.VarChar(24)
 
-  imageUrl String
-  publicId String
+  /// The media URL for both kinds. Keeps its name because the mobile apps
+  /// already read it; `mediaType` says how to render it.
+  imageUrl  String
+  /// "image" (JPEG/PNG/WebP/GIF) or "video" (MP4/WebM).
+  mediaType String @default("image")
+  publicId  String
   title    String?
   ctaLink  String?
 

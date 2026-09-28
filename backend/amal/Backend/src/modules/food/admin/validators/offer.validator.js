@@ -2,7 +2,19 @@ import { z } from 'zod';
 import { isId } from '../../../../utils/helpers.js';
 import { ValidationError } from '../../../../core/auth/errors.js';
 
+/**
+ * An offer image is an uploaded file's URL: a /uploads/ path or an http(s)
+ * URL. Anything else (javascript:, data:) is refused, since it is rendered
+ * straight into an <img> on the customer app.
+ */
+const offerImageUrl = z
+    .string()
+    .trim()
+    .max(1000)
+    .refine((v) => v === '' || v.startsWith('/uploads/') || /^https?:\/\//i.test(v), 'Invalid image URL');
+
 const createOfferSchema = z.object({
+    imageUrl: offerImageUrl.optional(),
     couponCode: z.string().min(1, 'Coupon code is required'),
     discountType: z.enum(['percentage', 'flat-price']).default('percentage'),
     discountValue: z.number().positive('Discount value must be greater than 0'),
@@ -126,8 +138,17 @@ export const validateCreateOfferDto = (body) => {
         perUserLimit: result.data.perUserLimit,
         isFirstOrderOnly: result.data.isFirstOrderOnly,
         adminBearPercentage,
-        restaurantBearPercentage
+        restaurantBearPercentage,
+        imageUrl: result.data.imageUrl || ''
     };
+};
+
+export const validateUpdateOfferImageDto = (body) => {
+    const result = z.object({ imageUrl: offerImageUrl }).safeParse(body || {});
+    if (!result.success) {
+        throw new ValidationError(result.error.errors[0].message);
+    }
+    return result.data;
 };
 
 const cartVisibilitySchema = z.object({

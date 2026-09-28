@@ -1,6 +1,6 @@
 import { prisma } from '../../../../config/prisma.js';
 import { isId } from '../../../../utils/helpers.js';
-import { saveImageFile } from '../../../../services/storage.service.js';
+import { saveImageFile, saveVideoFile, isVideoMimeType } from '../../../../services/storage.service.js';
 import { makeBannerService } from './bannerService.factory.js';
 
 const BANNER_FOLDER = 'food/home-promotion-banners';
@@ -37,10 +37,16 @@ export const createHomePromotionBanner = async (file, meta = {}) => {
     if (!file) return null;
 
     try {
-        const saved = await saveImageFile(file, BANNER_FOLDER);
+        // The only banner that takes a video. Images go through the usual
+        // WebP pipeline; a video is stored as-is under its own size cap.
+        const isVideo = isVideoMimeType(file.mimetype);
+        const saved = isVideo
+            ? await saveVideoFile(file, BANNER_FOLDER)
+            : await saveImageFile(file, BANNER_FOLDER);
         return await prisma.homePromotionBanner.create({
             data: {
                 imageUrl: saved.url,
+                mediaType: isVideo ? 'video' : 'image',
                 publicId: saved.path,
                 title: meta.title,
                 ctaLink: meta.ctaLink,

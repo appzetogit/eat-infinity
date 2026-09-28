@@ -7,7 +7,7 @@ import { foodImages } from "@food/constants/images";
 import OptimizedImage from "@food/components/OptimizedImage";
 import { useDeliveryLocation } from "@food/context/DeliveryLocationContext";
 import useAppBackNavigation from "@food/hooks/useAppBackNavigation";
-import { API_BASE_URL } from "@food/api/config";
+import { getBackendOrigin } from "../../../../shared/utils/mediaUrl.js";
 
 export default function Categories() {
   const navigate = useNavigate();
@@ -17,7 +17,7 @@ export default function Categories() {
   const [searchQuery, setSearchQuery] = useState("");
   const { effectiveLocation: location, zoneId } = useDeliveryLocation();
 
-  const BACKEND_ORIGIN = useMemo(() => API_BASE_URL.replace(/\/api\/?$/, ""), []);
+  const BACKEND_ORIGIN = useMemo(() => getBackendOrigin(), []);
 
   const normalizeImageUrl = (imageUrl) => {
     if (typeof imageUrl !== "string") return "";

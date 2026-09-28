@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import io from 'socket.io-client';
 import { API_BASE_URL } from '@food/api/config';
+import { getBackendOrigin } from '../../../shared/utils/mediaUrl.js';
 
 function calculateDistance(lat1, lng1, lat2, lng2) {
   const R = 6371000;
@@ -19,7 +20,7 @@ export const useLocationSharing = (orderId, enabled = false) => {
   const watchIdRef = useRef(null);
   const isSharingRef = useRef(false);
 
-  const backendUrl = API_BASE_URL ? API_BASE_URL.replace('/api', '') : '';
+  const backendUrl = API_BASE_URL ? getBackendOrigin() : '';
 
   const startSharing = () => {
     if (!orderId || isSharingRef.current) return;

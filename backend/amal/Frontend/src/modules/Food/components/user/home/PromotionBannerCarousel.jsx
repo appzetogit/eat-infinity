@@ -37,12 +37,15 @@ const PromotionBannerCarousel = ({ zoneId: propZoneId }) => {
   const startAutoSlide = useCallback(() => {
     if (autoSlideIntervalRef.current) clearInterval(autoSlideIntervalRef.current);
     if (banners.length <= 1) return;
+    // A video slide advances when it ends (see onEnded), not on the timer —
+    // cutting a clip off at five seconds defeats the point of uploading one.
+    if (banners[currentIndex]?.mediaType === "video") return;
 
     autoSlideIntervalRef.current = setInterval(() => {
       if (typeof document !== "undefined" && document.hidden) return;
       setCurrentIndex((prev) => (prev + 1) % banners.length);
     }, 5000);
-  }, [banners.length]);
+  }, [banners, currentIndex]);
 
   useEffect(() => {
     startAutoSlide();
@@ -99,11 +102,23 @@ const PromotionBannerCarousel = ({ zoneId: propZoneId }) => {
                 if (!banners[currentIndex]?.ctaLink) e.preventDefault();
               }}
             >
-              <img 
-                src={resolveMediaUrl(banners[currentIndex]?.imageUrl) || undefined} 
-                alt={banners[currentIndex]?.title || "Promotion"} 
-                className="w-full h-full object-cover"
-              />
+              {banners[currentIndex]?.mediaType === "video" ? (
+                <video
+                  src={resolveMediaUrl(banners[currentIndex]?.imageUrl) || undefined}
+                  autoPlay
+                  muted
+                  playsInline
+                  loop={banners.length === 1}
+                  onEnded={() => setCurrentIndex((prev) => (prev + 1) % banners.length)}
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                <img
+                  src={resolveMediaUrl(banners[currentIndex]?.imageUrl) || undefined}
+                  alt={banners[currentIndex]?.title || "Promotion"}
+                  className="w-full h-full object-cover"
+                />
+              )}
             </a>
           </motion.div>
         </AnimatePresence>

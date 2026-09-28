@@ -4,6 +4,7 @@ import { ArrowLeft, Star, Clock } from "lucide-react"
 import { Button } from "@food/components/ui/button"
 import { Card, CardContent } from "@food/components/ui/card"
 import { restaurantAPI } from "@food/api"
+import { resolveMediaUrl } from "../../../../shared/utils/mediaUrl.js"
 import useAppBackNavigation from "@food/hooks/useAppBackNavigation"
 import { toast } from "sonner"
 import { RestaurantGridSkeleton } from "@food/components/ui/loading-skeletons"
@@ -156,7 +157,17 @@ export default function Offers() {
                 </h2>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                   {offers.map((o) => (
-                    <Card key={o.id || o.offerId} className="border border-slate-200 shadow-sm">
+                    <Card key={o.id || o.offerId} className="border border-slate-200 shadow-sm overflow-hidden">
+                      {(o.imageUrl || o.restaurantImage) && (
+                        <div className="aspect-[2/1] w-full overflow-hidden bg-slate-100">
+                          <img
+                            src={resolveMediaUrl(o.imageUrl || o.restaurantImage) || undefined}
+                            alt={o.title || o.couponCode || "Offer"}
+                            className="w-full h-full object-cover"
+                            loading="lazy"
+                          />
+                        </div>
+                      )}
                       <CardContent className="p-4 space-y-2">
                         <div className="flex items-start justify-between gap-3">
                           <div>

@@ -61,6 +61,10 @@ token gets 403 on those, not 404.
 
 > The non-`/public` variants of the banner routes are **admin-only** and will 403.
 
+Home-promotion banners carry `mediaType` (`"image"` or `"video"`); `imageUrl`
+holds the media URL either way. A `"video"` is MP4 or WebM — play it muted and
+autoplaying.
+
 ---
 
 ## 3. Add-ons (per-item, Zomato-style)

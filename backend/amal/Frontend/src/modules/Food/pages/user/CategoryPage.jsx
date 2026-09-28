@@ -17,6 +17,7 @@ import { foodImages } from "@food/constants/images"
 import api from "@food/api"
 import { restaurantAPI, adminAPI } from "@food/api"
 import { API_BASE_URL } from "@food/api/config"
+import { getBackendOrigin } from "../../../../shared/utils/mediaUrl.js"
 import { useProfile } from "@food/context/ProfileContext"
 import { useDeliveryLocation } from "@food/context/DeliveryLocationContext"
 import { useDelayedLoading } from "@food/hooks/useDelayedLoading"
@@ -89,7 +90,7 @@ export default function CategoryPage() {
 
   const showCategorySkeleton = useDelayedLoading(loadingCategories)
   const deferredSearchQuery = useDeferredValue(searchQuery)
-  const BACKEND_ORIGIN = useMemo(() => API_BASE_URL.replace(/\/api\/?$/, ""), [])
+  const BACKEND_ORIGIN = useMemo(() => getBackendOrigin(), [])
   const slugify = (value) => String(value || "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "")
   const normalizeCategoryToken = (value) =>
     String(value || "")

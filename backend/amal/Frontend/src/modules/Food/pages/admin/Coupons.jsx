@@ -1,6 +1,22 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from "react"
 import { Check, ChevronDown, Search, X } from "lucide-react"
-import { adminAPI } from "@food/api"
+import { adminAPI, uploadAPI } from "@food/api"
+import { resolveMediaUrl } from "../../../../shared/utils/mediaUrl.js"
+
+const OFFER_IMAGE_FOLDER = "food/offers"
+const OFFER_IMAGE_MAX_MB = 5
+
+/** Uploads a card image and returns its URL, or throws with a message to show. */
+const uploadOfferImage = async (file) => {
+  if (!file.type.startsWith("image/")) throw new Error("Please choose an image file")
+  if (file.size > OFFER_IMAGE_MAX_MB * 1024 * 1024) {
+    throw new Error(`Image must be ${OFFER_IMAGE_MAX_MB}MB or less`)
+  }
+  const res = await uploadAPI.uploadMedia(file, { folder: OFFER_IMAGE_FOLDER })
+  const url = res?.data?.data?.url
+  if (!url) throw new Error("Upload failed")
+  return url
+}
 const debugLog = (...args) => {}
 const debugWarn = (...args) => {}
 const debugError = (...args) => {}
@@ -218,7 +234,10 @@ export default function Coupons() {
   const [updatingCartVisibility, setUpdatingCartVisibility] = useState({})
   const [deletingOffer, setDeletingOffer] = useState({})
   const [errors, setErrors] = useState({})
+  const [uploadingFormImage, setUploadingFormImage] = useState(false)
+  const [updatingImage, setUpdatingImage] = useState({})
   const [formData, setFormData] = useState({
+    imageUrl: "",
     couponCode: "",
     discountType: "percentage",
     discountValue: "",
@@ -430,6 +449,7 @@ export default function Coupons() {
 
   const resetForm = () => {
     setFormData({
+      imageUrl: "",
       couponCode: "",
       discountType: "percentage",
       discountValue: "",
@@ -498,6 +518,7 @@ export default function Coupons() {
         isFirstOrderOnly: Boolean(formData.isFirstOrderOnly),
         adminBearPercentage: Number(formData.adminBearPercentage),
         restaurantBearPercentage: Number(formData.restaurantBearPercentage),
+        imageUrl: formData.imageUrl || undefined,
       }
       await adminAPI.createAdminOffer(payload)
 
@@ -529,6 +550,38 @@ export default function Coupons() {
       debugError("Error updating cart visibility:", err)
     } finally {
       setUpdatingCartVisibility((prev) => ({ ...prev, [key]: false }))
+    }
+  }
+
+  const handleFormImageChange = async (e) => {
+    const file = e.target.files?.[0]
+    e.target.value = ""
+    if (!file) return
+    setSubmitError("")
+    try {
+      setUploadingFormImage(true)
+      const url = await uploadOfferImage(file)
+      setFormData((prev) => ({ ...prev, imageUrl: url }))
+    } catch (err) {
+      setSubmitError(err?.response?.data?.message || err?.message || "Image upload failed")
+    } finally {
+      setUploadingFormImage(false)
+    }
+  }
+
+  /** Uploads a new image for an existing offer, or clears it when file is null. */
+  const handleOfferImageChange = async (offerId, file) => {
+    if (!offerId || updatingImage[offerId]) return
+    try {
+      setUpdatingImage((prev) => ({ ...prev, [offerId]: true }))
+      const url = file ? await uploadOfferImage(file) : ""
+      await adminAPI.updateAdminOfferImage(offerId, url)
+      setOffers((prev) => prev.map((o) => (o.offerId === offerId ? { ...o, imageUrl: url } : o)))
+    } catch (err) {
+      debugError("Error updating offer image:", err)
+      alert(err?.response?.data?.message || err?.message || "Could not update the image")
+    } finally {
+      setUpdatingImage((prev) => ({ ...prev, [offerId]: false }))
     }
   }
 
@@ -586,6 +639,34 @@ export default function Coupons() {
               className="border border-slate-200 rounded-xl p-4 mb-5 bg-slate-50"
             >
               <h3 className="text-base font-semibold text-slate-900 mb-3">Create Coupon</h3>
+
+              <div className="mb-4">
+                <label className="block text-xs font-semibold text-slate-600 mb-1">Offer Card Image (optional)</label>
+                <div className="flex items-center gap-3">
+                  <label className="relative w-40 aspect-[2/1] rounded-lg border-2 border-dashed border-slate-300 bg-white overflow-hidden flex items-center justify-center cursor-pointer hover:border-blue-400 transition-colors">
+                    {formData.imageUrl ? (
+                      <img src={resolveMediaUrl(formData.imageUrl) || undefined} alt="" className="w-full h-full object-cover" />
+                    ) : (
+                      <span className="text-xs text-slate-400 px-2 text-center">
+                        {uploadingFormImage ? "Uploading..." : "Click to upload"}
+                      </span>
+                    )}
+                    <input type="file" accept="image/*" onChange={handleFormImageChange} disabled={uploadingFormImage} className="absolute inset-0 opacity-0 cursor-pointer" />
+                  </label>
+                  {formData.imageUrl && (
+                    <button
+                      type="button"
+                      onClick={() => setFormData((prev) => ({ ...prev, imageUrl: "" }))}
+                      className="text-xs font-semibold text-red-600 hover:underline"
+                    >
+                      Remove
+                    </button>
+                  )}
+                </div>
+                <p className="mt-1 text-xs text-slate-500">
+                  Shown on the customer Offers page. JPEG, PNG, WebP or GIF, up to {OFFER_IMAGE_MAX_MB}MB. Without one, the card uses the restaurant's photo.
+                </p>
+              </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
                 <div>
@@ -821,7 +902,7 @@ export default function Coupons() {
               <div className="mt-4">
                 <button
                   type="submit"
-                  disabled={isSubmitting || Object.keys(errors).length > 0}
+                  disabled={isSubmitting || uploadingFormImage || Object.keys(errors).length > 0}
                   className="px-4 py-2 rounded-lg bg-slate-900 text-white text-sm font-semibold hover:bg-slate-800 disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
                 >
                   {isSubmitting ? "Creating..." : "Create Coupon"}
@@ -877,6 +958,7 @@ export default function Coupons() {
                 <thead className="bg-slate-50 border-b border-slate-200">
                   <tr>
                     <th className="px-6 py-4 text-left text-xs font-bold text-slate-700 uppercase tracking-wider whitespace-nowrap">SI</th>
+                    <th className="px-6 py-4 text-left text-xs font-bold text-slate-700 uppercase tracking-wider whitespace-nowrap">Image</th>
                     <th className="px-6 py-4 text-left text-xs font-bold text-slate-700 uppercase tracking-wider whitespace-nowrap">Restaurant</th>
                     <th className="px-6 py-4 text-left text-xs font-bold text-slate-700 uppercase tracking-wider whitespace-nowrap">Dish</th>
                     <th className="px-6 py-4 text-left text-xs font-bold text-slate-700 uppercase tracking-wider whitespace-nowrap">Coupon Code</th>
@@ -897,6 +979,42 @@ export default function Coupons() {
                     <tr key={`${offer.offerId}-${offer.dishId}`} className="hover:bg-slate-50 transition-colors">
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span className="text-sm font-medium text-slate-700">{offer.sl}</span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="flex items-center gap-2">
+                          <label
+                            title={offer.imageUrl ? "Change image" : "Upload image"}
+                            className="relative w-20 aspect-[2/1] rounded-md border border-slate-200 bg-slate-50 overflow-hidden flex items-center justify-center cursor-pointer hover:border-blue-400"
+                          >
+                            {updatingImage[offer.offerId] ? (
+                              <span className="text-[10px] text-slate-400">Saving...</span>
+                            ) : offer.imageUrl ? (
+                              <img src={resolveMediaUrl(offer.imageUrl) || undefined} alt="" className="w-full h-full object-cover" />
+                            ) : (
+                              <span className="text-[10px] text-blue-600 font-semibold">+ Upload</span>
+                            )}
+                            <input
+                              type="file"
+                              accept="image/*"
+                              disabled={Boolean(updatingImage[offer.offerId])}
+                              onChange={(e) => {
+                                const file = e.target.files?.[0]
+                                e.target.value = ""
+                                if (file) handleOfferImageChange(offer.offerId, file)
+                              }}
+                              className="absolute inset-0 opacity-0 cursor-pointer"
+                            />
+                          </label>
+                          {offer.imageUrl && !updatingImage[offer.offerId] && (
+                            <button
+                              type="button"
+                              onClick={() => handleOfferImageChange(offer.offerId, null)}
+                              className="text-[11px] text-red-600 hover:underline"
+                            >
+                              Remove
+                            </button>
+                          )}
+                        </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span className="text-sm font-medium text-slate-900">

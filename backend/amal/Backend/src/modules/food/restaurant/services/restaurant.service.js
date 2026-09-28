@@ -1994,6 +1994,7 @@ export const listPublicOffers = async (query = {}) => {
             restaurantName,
             restaurantSlug: restaurant?.restaurantNameNormalized || undefined,
             restaurantImage: restaurant?.profileImage || null,
+            imageUrl: o.imageUrl || '',
             deliveryTime: restaurant?.estimatedDeliveryTime || null,
             restaurantRating: Number(restaurant?.rating) || 0,
             endDate: o.endDate || null,

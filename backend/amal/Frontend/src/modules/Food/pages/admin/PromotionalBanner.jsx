@@ -74,8 +74,15 @@ export default function PromotionalBanner() {
     const file = e.target.files?.[0]
     if (!file) return
 
-    if (file.size > 2 * 1024 * 1024) {
-      alert("Image size must be 2MB or less")
+    const isVideo = file.type.startsWith("video/")
+    if (isVideo && !["video/mp4", "video/webm"].includes(file.type)) {
+      alert("Video must be MP4 or WebM")
+      return
+    }
+    // Videos are stored as uploaded, so the cap is what the customer downloads.
+    const maxMb = isVideo ? 20 : 5
+    if (file.size > maxMb * 1024 * 1024) {
+      alert(`${isVideo ? "Video" : "Image"} must be ${maxMb}MB or less`)
       return
     }
 
@@ -89,7 +96,7 @@ export default function PromotionalBanner() {
   const handleSubmit = async (e) => {
     e.preventDefault()
     if (!formData.file && !editingBanner) {
-      alert("Please select a banner image")
+      alert("Please select a banner image or video")
       return
     }
 
@@ -145,7 +152,8 @@ export default function PromotionalBanner() {
           endDate: formData.endDate || null
         })
       } else {
-        res = await api.post("/food/hero-banners/home-promotion", data)
+        // A 20MB video on a slow connection outlives the client's 30s default.
+        res = await api.post("/food/hero-banners/home-promotion", data, { timeout: 120000 })
       }
 
       if (res.data?.success) {
@@ -292,7 +300,11 @@ export default function PromotionalBanner() {
             {banners.map((banner) => (
               <div key={banner._id} className="bg-white rounded-2xl overflow-hidden border border-slate-200 shadow-sm hover:shadow-md transition-shadow group">
                 <div className="relative aspect-[2/1] bg-slate-100 overflow-hidden">
-                  <img src={resolveMediaUrl(banner.imageUrl) || undefined} alt={banner.title} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" />
+                  {banner.mediaType === "video" ? (
+                    <video src={resolveMediaUrl(banner.imageUrl) || undefined} muted autoPlay loop playsInline className="w-full h-full object-cover" />
+                  ) : (
+                    <img src={resolveMediaUrl(banner.imageUrl) || undefined} alt={banner.title} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" />
+                  )}
                   <div className="absolute top-2 right-2 flex gap-2">
                     <button 
                       onClick={() => openEdit(banner)}
@@ -357,11 +369,15 @@ export default function PromotionalBanner() {
               <form onSubmit={handleSubmit} className="p-6">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="space-y-4">
-                    <label className="block text-sm font-semibold text-slate-700">Banner Image</label>
+                    <label className="block text-sm font-semibold text-slate-700">Banner Image or Video</label>
                     <div className="relative aspect-[2/1] rounded-2xl border-2 border-dashed border-slate-200 bg-slate-50 flex flex-col items-center justify-center overflow-hidden group cursor-pointer hover:border-blue-400 transition-colors">
                       {formData.preview ? (
                         <>
-                          <img src={formData.preview} className="w-full h-full object-cover" />
+                          {(formData.file ? formData.file.type.startsWith("video/") : editingBanner?.mediaType === "video") ? (
+                            <video src={formData.preview} muted autoPlay loop playsInline className="w-full h-full object-cover" />
+                          ) : (
+                            <img src={formData.preview} className="w-full h-full object-cover" />
+                          )}
                           <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
                             <Upload className="w-8 h-8 text-white" />
                           </div>
@@ -369,12 +385,12 @@ export default function PromotionalBanner() {
                       ) : (
                         <div className="text-center p-4">
                           <ImageIcon className="w-10 h-10 text-slate-300 mx-auto mb-2" />
-                          <p className="text-[10px] text-slate-400 font-medium uppercase tracking-widest">Upload 5:1 Image</p>
+                          <p className="text-[10px] text-slate-400 font-medium uppercase tracking-widest">Upload 5:1 Image or Video</p>
                         </div>
                       )}
-                      <input type="file" accept="image/*" onChange={handleFileChange} className="absolute inset-0 opacity-0 cursor-pointer" />
+                      <input type="file" accept="image/*,video/mp4,video/webm" onChange={handleFileChange} className="absolute inset-0 opacity-0 cursor-pointer" />
                     </div>
-                    <p className="text-[10px] text-slate-400">JPEG, PNG or WebP. Max 2MB.</p>
+                    <p className="text-[10px] text-slate-400">JPEG, PNG, WebP or GIF up to 5MB. MP4 or WebM video up to 20MB.</p>
                   </div>
 
                   <div className="space-y-4">

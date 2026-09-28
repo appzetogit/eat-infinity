@@ -9,7 +9,7 @@ export const useCompanyName = () => {
   const [companyName, setCompanyName] = useState(() => {
     // Initialize with cached value if available
     const cached = getCachedSettings();
-    return cached?.companyName || 'Eatinfinity';
+    return cached?.companyName || 'Amal Foods';
   });
 
   useEffect(() => {

@@ -12,9 +12,10 @@ import { useProfile } from "@food/context/ProfileContext"
 import { useDeliveryLocation } from "@food/context/DeliveryLocationContext"
 import { restaurantAPI } from "@food/api"
 import { API_BASE_URL } from "@food/api/config"
+import { getBackendOrigin } from "../../../../../shared/utils/mediaUrl.js"
 import { useDelayedLoading } from "@food/hooks/useDelayedLoading"
 
-const BACKEND_ORIGIN = API_BASE_URL.replace(/\/api\/?$/, "")
+const BACKEND_ORIGIN = getBackendOrigin()
 
 const normalizeImageUrl = (imageUrl) => {
   if (typeof imageUrl !== "string" || !imageUrl.trim()) return ""

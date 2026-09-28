@@ -81,6 +81,7 @@ export const config = {
     uploadBaseUrl: sanitizeUploadBaseUrl(process.env.UPLOAD_BASE_URL)
         || (process.env.NODE_ENV === 'production' ? '/uploads' : '/uploads'),
     uploadMaxFileSizeBytes: Number(process.env.UPLOAD_MAX_FILE_SIZE_MB || 5) * 1024 * 1024,
+    uploadMaxVideoSizeBytes: Number(process.env.UPLOAD_MAX_VIDEO_SIZE_MB || 20) * 1024 * 1024,
     uploadRateLimitWindowMinutes: Number(process.env.UPLOAD_RATE_LIMIT_WINDOW || 15),
     uploadRateLimitMax: Number(process.env.UPLOAD_RATE_LIMIT_MAX || 60),
     uploadRateLimitDevMax: Number(process.env.UPLOAD_RATE_LIMIT_DEV_MAX || 200),

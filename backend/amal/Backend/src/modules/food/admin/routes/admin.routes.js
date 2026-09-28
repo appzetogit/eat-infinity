@@ -328,6 +328,7 @@ router.post('/foods/bulk-approve', adminController.bulkApproveFoodItems);
 router.get('/offers', adminController.getAllOffers);
 router.post('/offers', adminController.createAdminOffer);
 router.patch('/offers/:id/cart-visibility', adminController.updateAdminOfferCartVisibility);
+router.patch('/offers/:id/image', adminController.updateAdminOfferImage);
 router.delete('/offers/:id', adminController.deleteAdminOffer);
 
 // ----- Feedback Experience (Admin) -----

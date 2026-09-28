@@ -983,6 +983,12 @@ export const adminAPI = {
       { itemId: String(itemId), showInCart: Boolean(showInCart) },
       { contextModule: "admin" },
     ),
+  updateAdminOfferImage: (offerId, imageUrl) =>
+    apiClient.patch(
+      `/food/admin/offers/${String(offerId)}/image`,
+      { imageUrl: String(imageUrl || "") },
+      { contextModule: "admin" },
+    ),
   deleteAdminOffer: (offerId) =>
     apiClient.delete(`/food/admin/offers/${String(offerId)}`, {
       contextModule: "admin",

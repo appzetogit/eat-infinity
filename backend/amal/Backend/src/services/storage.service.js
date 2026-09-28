@@ -259,6 +259,58 @@ export const saveImageFile = async (file, folder) => {
     };
 };
 
+const VIDEO_MIME_TYPES = new Map([
+    ['video/mp4', '.mp4'],
+    ['video/webm', '.webm'],
+]);
+
+export const isVideoMimeType = (mimeType) => VIDEO_MIME_TYPES.has(String(mimeType || '').toLowerCase());
+
+/**
+ * Stores a short video exactly as uploaded.
+ *
+ * No transcoding: the host has no ffmpeg, and a banner clip is small enough
+ * that re-encoding would buy little. That makes the size cap the whole
+ * defence, so it is checked here and not left to multer, whose ceiling is
+ * sized for a batch of restaurant documents and sits far above what a banner
+ * should weigh.
+ */
+export const saveVideoFile = async (file, folder) => {
+    if (!file?.buffer?.length) {
+        throw new ValidationError('File is required');
+    }
+
+    const mimeType = String(file.mimetype || '').toLowerCase();
+    const extension = VIDEO_MIME_TYPES.get(mimeType);
+    if (!extension) {
+        throw new ValidationError('Only MP4 and WebM videos are allowed');
+    }
+
+    const maxBytes = config.uploadMaxVideoSizeBytes;
+    if (file.buffer.length > maxBytes) {
+        throw new ValidationError(`Video must be ${Math.round(maxBytes / (1024 * 1024))}MB or smaller`);
+    }
+
+    const safeFolder = sanitizeUploadFolder(folder);
+    const filename = buildFilename(extension);
+    const relativePath = path.posix.join(safeFolder, filename);
+
+    if (useS3) {
+        await putObject(relativePath, file.buffer, mimeType);
+    } else {
+        await ensureUploadStorageReady(safeFolder);
+        await fs.writeFile(getAbsolutePath(relativePath), file.buffer);
+    }
+
+    return {
+        url: buildPublicUrl(relativePath),
+        path: relativePath,
+        filename,
+        mimeType,
+        size: file.buffer.length
+    };
+};
+
 export const saveImageBuffer = async (buffer, folder, options = {}) => {
     return saveImageFile(
         {

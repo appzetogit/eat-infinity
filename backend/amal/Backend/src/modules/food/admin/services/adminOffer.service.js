@@ -84,6 +84,7 @@ export async function getAllOffers(_query = {}) {
             // date has passed reads inactive even before the sweep runs.
             status: isExpired ? 'inactive' : o.status || 'active',
             showInCart: o.showInCart !== false,
+            imageUrl: o.imageUrl || '',
             endDate: o.endDate || null,
             minOrderValue: num(o.minOrderValue),
             maxDiscount: o.maxDiscount === null ? null : num(o.maxDiscount),
@@ -134,6 +135,7 @@ export async function createAdminOffer(body = {}) {
                         ? 'inactive'
                         : 'active',
                 showInCart: true,
+                imageUrl: body.imageUrl || '',
                 createdByRole: 'ADMIN',
                 // An admin campaign is platform-funded by default.
                 adminBearPercentage: body.adminBearPercentage ?? 100,
@@ -180,6 +182,19 @@ export async function updateAdminOfferCartVisibility(offerId, itemId, showInCart
     const { count } = await prisma.foodOffer.updateMany({
         where: { id: String(offerId) },
         data: { showInCart: Boolean(showInCart) },
+    });
+    if (!count) return null;
+
+    return prisma.foodOffer.findUnique({ where: { id: String(offerId) } });
+}
+
+/** Sets or clears ('') an offer's card image. Null when there is no such offer. */
+export async function updateAdminOfferImage(offerId, imageUrl) {
+    if (!isId(offerId)) return null;
+
+    const { count } = await prisma.foodOffer.updateMany({
+        where: { id: String(offerId) },
+        data: { imageUrl },
     });
     if (!count) return null;
 
