@@ -96,9 +96,10 @@ class HomeCouponsSection extends ConsumerWidget {
             ),
             SizedBox(height: 10.h),
 
-            // Horizontal Scrollable Coupon Cards List
+            // Horizontal Scrollable Coupon Cards List. The height is the
+            // card's 2:1 image plus its fixed text block, so nothing clips.
             SizedBox(
-              height: 100.h,
+              height: _CouponCardTile.imageHeight + _CouponCardTile.bodyHeight,
               child: ListView.separated(
                 scrollDirection: Axis.horizontal,
                 physics: const BouncingScrollPhysics(),
@@ -131,6 +132,32 @@ class _CouponCardTile extends StatelessWidget {
   final OfferModel offer;
   final bool isDark;
 
+  /// The admin uploads coupon artwork at 2:1, so the image area is exactly
+  /// 2:1 at full card width: BoxFit.cover then shows the whole image, with
+  /// no crop and nothing drawn on top of it.
+  static double get cardWidth => 260.w;
+  static double get imageHeight => cardWidth / 2;
+  static double get bodyHeight => 84.h;
+
+  String get _headline {
+    if (offer.title.isNotEmpty) return offer.title;
+    return offer.discountType == 'percentage'
+        ? '${offer.discountValue.toInt()}% OFF'
+        : 'FLAT ₹${offer.discountValue.toInt()} OFF';
+  }
+
+  String get _condition {
+    final expiry = offer.endDate != null
+        ? ' · Till ${DateFormat('d MMM').format(offer.endDate!)}'
+        : '';
+    if (offer.minOrderValue > 0) {
+      return 'On orders above ₹${offer.minOrderValue.toInt()}$expiry';
+    }
+    return offer.restaurantScope == 'all'
+        ? 'Valid on all orders$expiry'
+        : '${offer.restaurantName}$expiry';
+  }
+
   void _copyCoupon(BuildContext context) {
     Haptics.light();
     Clipboard.setData(ClipboardData(text: offer.couponCode));
@@ -145,10 +172,6 @@ class _CouponCardTile extends StatelessWidget {
     final imageUrl = offer.resolvedImageUrl;
     final hasImage = imageUrl != null && imageUrl.isNotEmpty;
 
-    final formattedExpiry = offer.endDate != null
-        ? DateFormat('d MMM').format(offer.endDate!)
-        : null;
-
     final cardBgColor = isDark ? const Color(0xFF1E293B) : Colors.white;
     final titleTextColor = isDark ? Colors.white : const Color(0xFF0F172A);
     final subtitleTextColor =
@@ -157,7 +180,7 @@ class _CouponCardTile extends StatelessWidget {
     return GestureDetector(
       onTap: () => _copyCoupon(context),
       child: Container(
-        width: 275.w,
+        width: cardWidth,
         decoration: BoxDecoration(
           color: cardBgColor,
           borderRadius: BorderRadius.circular(16.r),
@@ -174,112 +197,118 @@ class _CouponCardTile extends StatelessWidget {
           ],
         ),
         clipBehavior: Clip.antiAlias,
-        child: Padding(
-          padding: EdgeInsets.all(10.r),
-          child: Row(
-            children: [
-              // Left Content: Title, Subtitle, Code Badge & Copy Action
-              Expanded(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // Coupon image: full width, 2:1, nothing overlaid.
+            SizedBox(
+              height: imageHeight - 2, // minus the 1px border top and bottom
+              child: hasImage
+                  ? SmartImage(
+                      url: imageUrl,
+                      category: ImageCategory.restaurant,
+                      fit: BoxFit.cover,
+                      width: double.infinity,
+                      height: double.infinity,
+                    )
+                  : _FallbackArtwork(headline: _headline),
+            ),
+
+            // Text block: headline, condition, code pill and COPY.
+            SizedBox(
+              height: bodyHeight,
+              child: Padding(
+                padding: EdgeInsets.fromLTRB(10.w, 8.h, 10.w, 8.h),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // Title / Discount Headline
-                        Text(
-                          offer.title.isNotEmpty
-                              ? offer.title
-                              : (offer.discountType == 'percentage'
-                                  ? '${offer.discountValue.toInt()}% OFF'
-                                  : 'FLAT ₹${offer.discountValue.toInt()} OFF'),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            color: titleTextColor,
-                            fontSize: 15.sp,
-                            fontWeight: FontWeight.w900,
-                            letterSpacing: -0.3,
-                          ),
-                        ),
-                        SizedBox(height: 2.h),
-
-                        // Subtitle / Order Threshold & Expiry
-                        Text(
-                          offer.minOrderValue > 0
-                              ? 'On orders above ₹${offer.minOrderValue.toInt()}${formattedExpiry != null ? ' · Till $formattedExpiry' : ''}'
-                              : (offer.restaurantScope == 'all'
-                                  ? 'Valid on all orders${formattedExpiry != null ? ' · Till $formattedExpiry' : ''}'
-                                  : offer.restaurantName),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            color: subtitleTextColor,
-                            fontSize: 11.sp,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      ],
+                    Text(
+                      _headline,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: titleTextColor,
+                        fontSize: 15.sp,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: -0.3,
+                      ),
                     ),
-
-                    // Coupon Code Badge & Copy Button Row
+                    Text(
+                      _condition,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: subtitleTextColor,
+                        fontSize: 11.sp,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
                     Row(
                       children: [
                         // Coupon Code Pill
-                        Container(
-                          padding: EdgeInsets.symmetric(
-                            horizontal: 8.w,
-                            vertical: 3.h,
-                          ),
-                          decoration: BoxDecoration(
-                            color: AppColors.primary.withValues(alpha: 0.08),
-                            borderRadius: BorderRadius.circular(6.r),
-                            border: Border.all(
-                              color: AppColors.primary.withValues(alpha: 0.3),
-                              width: 1,
+                        Flexible(
+                          child: Container(
+                            padding: EdgeInsets.symmetric(
+                              horizontal: 8.w,
+                              vertical: 3.h,
                             ),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(
-                                Icons.confirmation_number_outlined,
-                                color: AppColors.primary,
-                                size: 12.sp,
+                            decoration: BoxDecoration(
+                              color: AppColors.primary.withValues(alpha: 0.08),
+                              borderRadius: BorderRadius.circular(6.r),
+                              border: Border.all(
+                                color: AppColors.primary.withValues(alpha: 0.3),
+                                width: 1,
                               ),
-                              SizedBox(width: 4.w),
-                              Text(
-                                offer.couponCode,
-                                style: TextStyle(
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  Icons.confirmation_number_outlined,
                                   color: AppColors.primary,
-                                  fontSize: 11.sp,
-                                  fontWeight: FontWeight.w800,
-                                  letterSpacing: 0.4,
+                                  size: 12.sp,
                                 ),
-                              ),
-                            ],
+                                SizedBox(width: 4.w),
+                                Flexible(
+                                  child: Text(
+                                    offer.couponCode,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(
+                                      color: AppColors.primary,
+                                      fontSize: 11.sp,
+                                      fontWeight: FontWeight.w800,
+                                      letterSpacing: 0.4,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
                         ),
                         SizedBox(width: 8.w),
 
-                        // Copy Button Pill
-                        Container(
-                          padding: EdgeInsets.symmetric(
-                            horizontal: 8.w,
-                            vertical: 4.h,
-                          ),
-                          decoration: BoxDecoration(
-                            color: AppColors.primary,
-                            borderRadius: BorderRadius.circular(12.r),
-                          ),
-                          child: Text(
-                            'COPY',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 10.sp,
-                              fontWeight: FontWeight.w900,
-                              letterSpacing: 0.3,
+                        // Copy Button — its own tap target as well as the card.
+                        GestureDetector(
+                          onTap: () => _copyCoupon(context),
+                          child: Container(
+                            padding: EdgeInsets.symmetric(
+                              horizontal: 10.w,
+                              vertical: 4.h,
+                            ),
+                            decoration: BoxDecoration(
+                              color: AppColors.primary,
+                              borderRadius: BorderRadius.circular(12.r),
+                            ),
+                            child: Text(
+                              'COPY',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 10.sp,
+                                fontWeight: FontWeight.w900,
+                                letterSpacing: 0.3,
+                              ),
                             ),
                           ),
                         ),
@@ -288,54 +317,53 @@ class _CouponCardTile extends StatelessWidget {
                   ],
                 ),
               ),
-
-              SizedBox(width: 8.w),
-
-              // Right Content: Clear Image Thumbnail Container
-              Container(
-                width: 76.w,
-                height: 76.w,
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(12.r),
-                  color:
-                      isDark ? AppColors.surfaceDark : const Color(0xFFF1F5F9),
-                  border: Border.all(
-                    color: isDark ? Colors.white10 : const Color(0xFFE2E8F0),
-                    width: 1,
-                  ),
-                ),
-                clipBehavior: Clip.antiAlias,
-                child: hasImage
-                    ? SmartImage(
-                        url: imageUrl,
-                        category: ImageCategory.restaurant,
-                        fit: BoxFit.cover,
-                        width: double.infinity,
-                        height: double.infinity,
-                      )
-                    : Container(
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                            colors: [
-                              AppColors.primary.withValues(alpha: 0.15),
-                              AppColors.primary.withValues(alpha: 0.35),
-                            ],
-                          ),
-                        ),
-                        child: Center(
-                          child: Icon(
-                            Icons.local_offer_rounded,
-                            color: AppColors.primary,
-                            size: 28.sp,
-                          ),
-                        ),
-                      ),
-              ),
-            ],
-          ),
+            ),
+          ],
         ),
+      ),
+    );
+  }
+}
+
+/// Shown in the image area when a coupon has neither its own image nor a
+/// restaurant photo, so the card keeps its shape instead of collapsing.
+class _FallbackArtwork extends StatelessWidget {
+  const _FallbackArtwork({required this.headline});
+
+  final String headline;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            AppColors.primary.withValues(alpha: 0.85),
+            AppColors.primary,
+          ],
+        ),
+      ),
+      padding: EdgeInsets.symmetric(horizontal: 16.w),
+      child: Row(
+        children: [
+          Icon(Icons.local_offer_rounded, color: Colors.white, size: 30.sp),
+          SizedBox(width: 10.w),
+          Expanded(
+            child: Text(
+              headline,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 20.sp,
+                fontWeight: FontWeight.w900,
+                letterSpacing: -0.4,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

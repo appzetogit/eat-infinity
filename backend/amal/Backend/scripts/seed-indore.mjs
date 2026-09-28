@@ -209,6 +209,30 @@ if (!existingFees) {
     console.log('fees: already configured, left alone');
 }
 
+// A global row too. loadActiveFeeSettings falls back to it for any order
+// outside a zone that has its own, and with none at all such a bill comes out
+// with every fee at ₹0.
+const globalFees = await prisma.foodFeeSettings.findFirst({ where: { zoneId: null } });
+if (!globalFees) {
+    await prisma.foodFeeSettings.create({
+        data: {
+            zoneId: null,
+            deliveryFee: 30,
+            platformFee: 5,
+            gstRate: 5,
+            isActive: true,
+            deliveryFeeBands: {
+                create: [
+                    { minDistanceKm: 0, maxDistanceKm: 3, fee: 20, deliveryBoyBasePay: 25 },
+                    { minDistanceKm: 3, maxDistanceKm: 6, fee: 35, deliveryBoyBasePay: 40 },
+                    { minDistanceKm: 6, maxDistanceKm: 15, fee: 55, deliveryBoyBasePay: 60 },
+                ],
+            },
+        },
+    });
+    console.log('fees: created global fallback');
+}
+
 // ── Categories, global ──────────────────────────────────────────────────────
 // Global rather than scoped to the zone: the home rail asks for categories
 // before it knows the customer's zone, and a zone-scoped category is invisible
@@ -257,7 +281,8 @@ for (const r of RESTAURANTS) {
         cuisines: r.cuisines,
         openingTime: r.open,
         closingTime: r.close,
-        openDays: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+        // Full names, matching outletTimings, so nothing has to normalise them.
+        openDays: DAYS,
         pureVegRestaurant: r.veg,
         isAcceptingOrders: true,
         estimatedDeliveryTime: r.eta,
@@ -311,5 +336,60 @@ for (const r of RESTAURANTS) {
     console.log(`restaurant: ${restaurant.restaurantName} (${r.area})`);
 }
 console.log(`done: ${RESTAURANTS.length} restaurants, ${itemCount} dishes`);
+
+// ── Coupons ─────────────────────────────────────────────────────────────────
+// A few live ones so the Offers screen, the Home coupon rail and the cart
+// picker have something to show. Images point at the seeded dish photos in
+// /uploads/seed (see CREDITS.tsv there); an offer without one would fall back
+// to its restaurant's photo.
+const restaurantIdByName = new Map(
+    (await prisma.foodRestaurant.findMany({
+        where: { restaurantName: { in: RESTAURANTS.map((r) => r.name) } },
+        select: { id: true, restaurantName: true },
+    })).map((r) => [r.restaurantName, r.id]),
+);
+const inNinetyDays = new Date(Date.now() + 90 * 24 * 60 * 60 * 1000);
+
+const COUPONS = [
+    { couponCode: 'WELCOME50', discountType: 'percentage', discountValue: 50, maxDiscount: 100,
+        customerScope: 'first_time', isFirstOrderOnly: true, minOrderValue: 149,
+        imageUrl: '/uploads/seed/indori-poha.webp' },
+    { couponCode: 'FLAT50', discountType: 'flat_price', discountValue: 50,
+        minOrderValue: 249, imageUrl: '/uploads/seed/malwa-special-thali.webp' },
+    { couponCode: 'PIZZA20', discountType: 'percentage', discountValue: 20, maxDiscount: 80,
+        minOrderValue: 299, restaurant: 'Palasia Pizza Co.', imageUrl: '/uploads/seed/margherita-pizza.webp' },
+    { couponCode: 'BIRYANI100', discountType: 'flat_price', discountValue: 100,
+        minOrderValue: 499, restaurant: 'Vijay Nagar Biryani House', imageUrl: '/uploads/seed/chicken-dum-biryani.webp' },
+];
+
+for (const c of COUPONS) {
+    const restaurantId = c.restaurant ? restaurantIdByName.get(c.restaurant) : null;
+    if (c.restaurant && !restaurantId) {
+        console.log(`coupon ${c.couponCode}: restaurant "${c.restaurant}" not found, skipped`);
+        continue;
+    }
+    const data = {
+        couponCode: c.couponCode,
+        discountType: c.discountType,
+        discountValue: c.discountValue,
+        maxDiscount: c.maxDiscount ?? null,
+        minOrderValue: c.minOrderValue ?? 0,
+        customerScope: c.customerScope ?? 'all',
+        isFirstOrderOnly: c.isFirstOrderOnly ?? false,
+        restaurantScope: restaurantId ? 'selected' : 'all',
+        restaurantId: restaurantId ?? null,
+        restaurantIds: restaurantId ? [restaurantId] : [],
+        perUserLimit: c.customerScope === 'first_time' ? 1 : null,
+        endDate: inNinetyDays,
+        status: 'active',
+        showInCart: true,
+        imageUrl: c.imageUrl,
+        createdByRole: 'ADMIN',
+        adminBearPercentage: 100,
+        restaurantBearPercentage: 0,
+    };
+    await prisma.foodOffer.upsert({ where: { couponCode: c.couponCode }, create: data, update: data });
+}
+console.log(`coupons: ${COUPONS.length}`);
 
 await prisma.$disconnect();
