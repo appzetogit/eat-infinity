@@ -983,6 +983,25 @@ export const adminAPI = {
       { itemId: String(itemId), showInCart: Boolean(showInCart) },
       { contextModule: "admin" },
     ),
+  // Third-party delivery (Delhivery Local), per zone.
+  getDeliveryProviders: () =>
+    apiClient.get("/food/admin/delivery-providers", { contextModule: "admin" }),
+  checkDeliveryProviderCredentials: () =>
+    apiClient.post("/food/admin/delivery-providers/check-credentials", {}, { contextModule: "admin" }),
+  saveZoneDeliveryConfig: (zoneId, body) =>
+    apiClient.put(`/food/admin/delivery-providers/zones/${String(zoneId)}`, body ?? {}, { contextModule: "admin" }),
+  testZoneDeliveryQuote: (zoneId, body = {}) =>
+    apiClient.post(`/food/admin/delivery-providers/zones/${String(zoneId)}/test-quote`, body, { contextModule: "admin", timeout: 30000 }),
+  getDeliveryShipments: (params = {}) =>
+    apiClient.get("/food/admin/delivery-providers/shipments", { params, contextModule: "admin" }),
+  resyncDeliveryShipment: (shipmentId) =>
+    apiClient.post(`/food/admin/delivery-providers/shipments/${String(shipmentId)}/resync`, {}, { contextModule: "admin" }),
+  cancelDeliveryShipment: (shipmentId, reason) =>
+    apiClient.post(`/food/admin/delivery-providers/shipments/${String(shipmentId)}/cancel`, { reason }, { contextModule: "admin" }),
+  retryDeliveryForOrder: (orderId) =>
+    apiClient.post(`/food/admin/delivery-providers/orders/${String(orderId)}/retry`, {}, { contextModule: "admin", timeout: 30000 }),
+  switchOrderToOwnRiders: (orderId) =>
+    apiClient.post(`/food/admin/delivery-providers/orders/${String(orderId)}/switch-to-own`, {}, { contextModule: "admin" }),
   updateAdminOfferImage: (offerId, imageUrl) =>
     apiClient.patch(
       `/food/admin/offers/${String(offerId)}/image`,

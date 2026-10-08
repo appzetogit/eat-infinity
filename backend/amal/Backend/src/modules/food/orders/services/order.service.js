@@ -72,6 +72,43 @@ const withRelations = (restaurant = RESTAURANT_CARD, partner = PARTNER_CARD, use
   user: { select: user },
 });
 
+/**
+ * Third-party delivery (Delhivery) hooks. Imported lazily — the provider module
+ * imports order code — and never allowed to fail the order operation that
+ * triggered them; the scheduler's poller reconciles anything missed here.
+ */
+const loadDelhivery = () => import('../../logistics/delhivery/delhivery.service.js');
+
+function releaseThirdPartyDelivery(orderId) {
+  void loadDelhivery()
+    .then(({ cancelShipmentForOrder }) => cancelShipmentForOrder(orderId))
+    .catch((err) => logger.warn(`Delhivery cancel for ${orderId} failed: ${err?.message || err}`));
+}
+
+function notifyThirdPartyFoodReady(orderId) {
+  void loadDelhivery()
+    .then(({ onRestaurantReady }) => onRestaurantReady(orderId))
+    .catch((err) => logger.warn(`Delhivery rider release for ${orderId} failed: ${err?.message || err}`));
+}
+
+/**
+ * Adds `deliveryProvider` and, for a third-party order, `externalDelivery` to an
+ * order already shaped for its audience (sanitisers may drop the field, so the
+ * provider is passed in from the unsanitised order).
+ */
+async function withExternalDelivery(order, audience, provider) {
+  if (!order) return order;
+  order.deliveryProvider = provider || order.deliveryProvider || 'own';
+  if (order.deliveryProvider !== 'delhivery') return order;
+  try {
+    const { externalDeliveryFor } = await loadDelhivery();
+    return { ...order, externalDelivery: await externalDeliveryFor(order.id || order._id, { audience }) };
+  } catch (err) {
+    logger.warn(`externalDelivery for ${order.id} failed: ${err?.message || err}`);
+    return order;
+  }
+}
+
 /** Validates an id's shape, replacing the old toObjectId() cast. */
 function requireId(id, fieldName = 'ID') {
   if (!id) return null;
@@ -546,6 +583,10 @@ export async function createOrder(userId, dto) {
       normalizedPricing.distanceKm = distanceKm;
       normalizedPricing.roadDistanceKm = distanceKm;
     }
+
+    // A zone delivered only by a third party has nobody to collect cash or show
+    // the pay-at-door QR. Checked against the restaurant's zone (the pickup).
+    await (await loadDelhivery()).assertPaymentMethodAllowedForZone(restaurant.zoneId, paymentMethod);
 
     // Same zone the order is about to be stamped with, a few lines below.
     const orderZoneId = dto.zoneId || restaurant.zoneId || null;
@@ -1042,7 +1083,7 @@ export async function getOrderById(
   if (admin) {
     const out = normalizeOrderForClient(order);
     out.transaction = await buildAdminTransactionView(order.id);
-    return out;
+    return withExternalDelivery(out, 'admin', order.deliveryProvider);
   }
 
   const orderUserId = row.userId;
@@ -1060,7 +1101,7 @@ export async function getOrderById(
   if (restaurantId) {
     const out = sanitizeOrderForExternal(order);
     out.finance = await buildRestaurantFinanceView(order);
-    return out;
+    return withExternalDelivery(out, 'restaurant', order.deliveryProvider);
   }
 
   if (deliveryPartnerId) {
@@ -1094,7 +1135,7 @@ export async function getOrderById(
       }
     }
 
-    return out;
+    return withExternalDelivery(out, 'user', order.deliveryProvider);
   }
 
   return sanitizeOrderForExternal(order);
@@ -1354,6 +1395,7 @@ export async function cancelOrder(orderId, userId, reason) {
     data: { orderStatus: "cancelled_by_user", ...refund.paymentPatch },
     include: orderInclude,
   }));
+  releaseThirdPartyDelivery(order.id);
 
   await pushStatusHistory(order.id, {
     byRole: "USER",
@@ -1766,6 +1808,11 @@ export async function updateOrderStatusRestaurant(orderId, restaurantId, orderSt
       logger.warn(`updateOrderStatusRestaurant delivered transaction sync failed: ${err?.message || err}`);
     }
   }
+
+  // A third-party rider follows the kitchen: cancel the booking with the order,
+  // and release a rider held until the food is ready.
+  if (String(orderStatus).includes("cancel")) releaseThirdPartyDelivery(updated.id);
+  else if (String(orderStatus) === "ready_for_pickup") notifyThirdPartyFoodReady(updated.id);
 
   let title = `Order ${updated.id} updated`;
   let body = `Status changed to ${String(orderStatus).replace(/_/g, " ")}`;
@@ -2334,6 +2381,8 @@ export async function updateOrderStatusAdmin(orderId, orderStatus, note = "", ad
     data: { orderStatus, ...(codBecomesPaid ? { paymentStatus: 'paid' } : {}), ...refundPatch },
     include: orderInclude,
   }));
+  if (String(orderStatus).includes("cancel")) releaseThirdPartyDelivery(order.id);
+  else if (String(orderStatus) === "ready_for_pickup") notifyThirdPartyFoodReady(order.id);
 
   await pushStatusHistory(order.id, {
     byRole,

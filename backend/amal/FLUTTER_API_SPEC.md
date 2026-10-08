@@ -153,6 +153,39 @@ All return active-only, ordered lists.
 | GET | `/food/dining/categories/public` | dining categories |
 | GET | `/food/dining/restaurants/public` | dining restaurants |
 
+### Third-party delivery (Delhivery) — order fields
+
+Orders carry `deliveryProvider`: `"own"` (our riders) or `"delhivery"`. For a
+Delhivery order, `GET /food/orders/:orderId` also returns:
+
+```json
+"externalDelivery": {
+  "provider": "delhivery",
+  "providerOrderId": "CRN1830008718JJ",
+  "fulfilmentStatus": "agent_assigned",
+  "statusText": "Delivery partner on the way to the restaurant",
+  "active": true,
+  "riderName": "Utkarsh Rider",
+  "riderPhone": null,
+  "vehicleNumber": "DL98349",
+  "vehicleType": "2-wheeler",
+  "riderLat": 23.03, "riderLng": 72.57, "riderLocationAt": "…",
+  "trackingUrl": "https://v3.delhivery.com/local?order_id=CRN…"
+}
+```
+
+- Fill the rider card from it instead of `dispatch.deliveryPartnerId` (which is
+  null for Delhivery orders). Hide **Call** when `riderPhone` is null — Delhivery
+  often leaves it empty.
+- `orderStatus` still moves through `picked_up` → `delivered`, and the live map
+  still gets `location-update` socket events and `deliveryState.currentLocation`.
+- The drop OTP flow is unchanged: the customer shows the same 4-digit code to the
+  Delhivery rider.
+- Offer an **"Open live tracking"** button with `trackingUrl` as a fallback.
+- In Delhivery-only zones, placing a `cash` or `razorpay_qr` order is refused
+  with *"Pay online to order in this area…"*, and `/orders/calculate` can refuse
+  an address with *"Delivery isn't available to this address yet…"*.
+
 Offers from `GET /food/restaurant/offers` carry `imageUrl`: the admin-uploaded
 card image, or `""` when none was set (fall back to `restaurantImage`).
 

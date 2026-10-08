@@ -12,9 +12,11 @@ let expireOffersInterval = null;
 let fssaiExpiryInterval = null;
 let subscriptionBillingInterval = null;
 let orderWatchdogInterval = null;
+let delhiveryInterval = null;
 
 const shutdown = async (signal) => {
     logger.info(`${signal} received, stopping scheduled jobs`);
+    if (delhiveryInterval) clearInterval(delhiveryInterval);
     if (expireOffersInterval) clearInterval(expireOffersInterval);
     if (fssaiExpiryInterval) clearInterval(fssaiExpiryInterval);
     if (subscriptionBillingInterval) clearInterval(subscriptionBillingInterval);
@@ -86,6 +88,23 @@ const start = async () => {
             }
         };
 
+        // Third-party delivery (Delhivery): release held riders on time, give up
+        // on bookings nobody took, backfill missed webhooks. A no-op until
+        // credentials are configured.
+        let delhiveryRunning = false;
+        const runDelhiveryJobs = async () => {
+            if (delhiveryRunning) return;
+            delhiveryRunning = true;
+            try {
+                const { runDelhiveryJobs: run } = await import('../src/modules/food/logistics/delhivery/delhivery.service.js');
+                await run();
+            } catch (err) {
+                logger.error(`Delhivery jobs error: ${err.message}`);
+            } finally {
+                delhiveryRunning = false;
+            }
+        };
+
         await runExpire();
         await runFssaiExpirySync();
         await runSubscriptionBilling();
@@ -95,6 +114,7 @@ const start = async () => {
         fssaiExpiryInterval = setInterval(runFssaiExpirySync, 60 * 60 * 1000);
         subscriptionBillingInterval = setInterval(runSubscriptionBilling, 6 * 60 * 60 * 1000);
         orderWatchdogInterval = setInterval(runOrderWatchdog, 5 * 60 * 1000);
+        delhiveryInterval = setInterval(runDelhiveryJobs, 60 * 1000);
 
         logger.info('Scheduled jobs runner started');
     } catch (err) {

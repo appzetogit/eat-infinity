@@ -147,6 +147,19 @@ export const config = {
     razorpayKeySecret: process.env.RAZORPAY_KEY_SECRET,
     razorpayWebhookSecret: process.env.RAZORPAY_WEBHOOK_SECRET, // ✅ NEW
 
+    // Delhivery Local (third-party delivery). One account serves every zone;
+    // which zones use it is configured per zone in the admin panel.
+    delhivery: {
+        env: String(process.env.DELHIVERY_ENV || 'sandbox').toLowerCase() === 'production' ? 'production' : 'sandbox',
+        clientId: process.env.DELHIVERY_CLIENT_ID || '',
+        clientSecret: process.env.DELHIVERY_CLIENT_SECRET || '',
+        clientCode: process.env.DELHIVERY_CLIENT_CODE || '',
+        /** Sent to Delhivery as the webhook xApiKey and checked on every webhook. */
+        webhookApiKey: process.env.DELHIVERY_WEBHOOK_API_KEY || '',
+        /** Public origin the webhook URL is built from. */
+        publicBaseUrl: String(process.env.PUBLIC_API_BASE_URL || process.env.FRONTEND_URL || '').replace(/\/+$/, ''),
+    },
+
     // Email (SMTP) – for admin forgot password OTP etc.
     emailHost: process.env.EMAIL_HOST,
     emailPort: Number(process.env.EMAIL_PORT) || 587,
