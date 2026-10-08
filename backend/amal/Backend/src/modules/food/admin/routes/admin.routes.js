@@ -23,6 +23,7 @@ import { requireAdminPermission, requireAnyAdminPermission } from '../../../../c
 import * as driverRegField from '../../delivery/controllers/driverRegistrationField.controller.js';
 import * as cashbackSettings from '../controllers/cashbackSettings.controller.js';
 import * as restaurantAppBanner from '../controllers/restaurantAppBanner.controller.js';
+import delhiveryAdminRoutes from '../../logistics/delhivery/delhivery.admin.js';
 
 const router = express.Router();
 
@@ -130,6 +131,9 @@ router.use('/addons', requireAdminPermission('food_management', 'view'));
 router.use('/foods', requireAdminPermission('food_management', 'view'));
 router.use('/offers', requireAdminPermission('promotions_management', 'view'));
 router.use('/delivery', requireAdminPermission('delivery_management', 'view'));
+// Third-party delivery (Delhivery). The /delivery prefix rule in
+// resolveSectionFromRequest already guards it with delivery_management.
+router.use('/delivery-providers', delhiveryAdminRoutes);
 router.use('/withdrawals', requireAdminPermission('transaction_management', 'view'));
 router.use('/reports', requireAdminPermission('report_management', 'view'));
 router.use('/feature-settings', requireAdminPermission('system_settings', 'view'));

@@ -17,6 +17,7 @@ import * as adminController from '../modules/food/admin/controllers/admin.contro
 import { requireRoles } from '../core/roles/role.middleware.js';
 import { getQueuesController } from '../controllers/queue.controller.js';
 import webhookRoutes from '../core/payments/routes/webhook.routes.js'; // ✅ NEW
+import delhiveryWebhookRoutes from '../modules/food/logistics/delhivery/delhivery.webhook.js';
 import searchRoutes from '../modules/food/search/routes/search.routes.js';
 import chatRoutes from '../modules/food/chat/routes/chat.routes.js';
 import { requireAdminPermission } from '../core/roles/adminPermission.middleware.js';
@@ -79,6 +80,8 @@ router.use('/v1/food/chat', authMiddleware, requireRoles('USER', 'RESTAURANT', '
 router.use('/v1/food/orders', authMiddleware, requireRoles('USER'), orderUserRoutes);
 router.use('/v1/food/payments', authMiddleware, paymentRoutes);
 router.use('/v1/payments/webhook', webhookRoutes); // ✅ NEW: Public Webhook
+// Delhivery Local status callbacks — public, authenticated by X-Api-Key.
+router.use('/v1/webhooks/delhivery', delhiveryWebhookRoutes);
 router.use('/v1/fcm-tokens', fcmRoutes);
 router.use('/fcm-tokens', fcmRoutes);
 

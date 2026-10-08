@@ -412,6 +412,13 @@ export async function calculateOrderPricing(userId, dto, options = {}) {
     await resolveDeliveryAddress(userId, dto),
   );
 
+  // In zones delivered by a third party (Delhivery), refuse an address it
+  // cannot serve now, before the customer pays — not after the kitchen cooks.
+  const { assertDeliverableByZoneProvider } = await import(
+    '../../logistics/delhivery/delhivery.service.js'
+  );
+  await assertDeliverableByZoneProvider(restaurant, deliveryAddress);
+
   const resolvedItems = await resolveOrderCartItems(dto.restaurantId, dto.items);
   const items = resolvedItems.map((item) => ({
     ...item,

@@ -271,6 +271,21 @@ export async function updateDispatchSettings(dispatchMode, adminId) {
 export async function tryAutoAssign(orderId, options = {}) {
   const id = String(orderId);
   const attempt = options.attempt || 1;
+
+  // Zones switched to a third-party provider (Delhivery) never reach our own
+  // riders. Every dispatch path comes through here, so this one check covers
+  // the restaurant accepting, rider rejections, timeouts and the watchdog.
+  try {
+    const { routeOrderToProvider } = await import('../../logistics/delhivery/delhivery.service.js');
+    const routed = await routeOrderToProvider(id);
+    if (routed?.handled) {
+      logger.info(`tryAutoAssign: ${id} handled by third-party delivery (${routed.reason || 'booked'}).`);
+      return null;
+    }
+  } catch (err) {
+    // A provider bug must never stop our own riders being dispatched.
+    logger.error(`tryAutoAssign: provider routing failed for ${id}: ${err?.message || err}`);
+  }
   // Small buffer above the accept window so an in-flight offer isn't reclaimed early.
   const lockTimeout = DRIVER_ACCEPT_WINDOW_MS + 5000; // 50s
 

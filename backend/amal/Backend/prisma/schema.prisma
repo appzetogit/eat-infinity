@@ -206,6 +206,34 @@ enum DispatchOfferAction {
   deassigned
 }
 
+enum DeliveryProvider {
+  own
+  delhivery
+}
+
+/// How a zone's orders are delivered. The *_then_* modes fall back to the
+/// other provider when the first cannot find a rider.
+enum ZoneDeliveryMode {
+  own
+  delhivery
+  delhivery_then_own
+  own_then_delhivery
+}
+
+/// What happens when a third-party provider finds no rider in time.
+enum NoRiderPolicy {
+  fallback_own
+  cancel_refund
+  notify_admin
+}
+
+/// When a third-party rider is released to the restaurant.
+enum RiderConfirmPolicy {
+  on_accept
+  prep_aligned
+  on_ready
+}
+
 enum DeliveryPhase {
   en_route_to_pickup
   at_pickup
@@ -1302,6 +1330,9 @@ model FoodOrder {
   dispatchAssignedAt        DateTime?
   dispatchAcceptedAt        DateTime?
   dispatchingAt             DateTime?
+  /// Who delivers this order. `delhivery` orders never enter our own rider
+  /// dispatch; their state comes from FoodDeliveryShipment.
+  deliveryProvider          DeliveryProvider @default(own)
 
   // ── delivery state ──
   deliveryPhase   DeliveryPhase @default(en_route_to_pickup)
@@ -1367,6 +1398,7 @@ model FoodOrder {
   itemRatings    OrderItemRating[]
   statusHistory  OrderStatusHistory[]
   dispatchOffers OrderDispatchOffer[]
+  shipments      FoodDeliveryShipment[]
 
   payments          Payment[]
   refunds           Refund[]
@@ -1898,10 +1930,130 @@ model FoodZone {
   foodFeeSettings         FoodFeeSettings[]
   topBanners              TopBanner[]
   foodLandingZoneSettings FoodLandingZoneSettings?
+  deliveryConfig          FoodZoneDeliveryConfig?
 
   @@index([isActive, name])
   @@index([country, name])
   @@map("food_zones")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Third-party delivery (Delhivery Local)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// Per-zone delivery behaviour. A zone with no row is delivered by our own
+/// riders exactly as before; credentials are global (env), only behaviour
+/// varies by zone.
+model FoodZoneDeliveryConfig {
+  id     String @id @default(dbgenerated("encode(gen_random_bytes(12), 'hex')")) @db.VarChar(24)
+  zoneId String @unique @db.VarChar(24)
+
+  mode      ZoneDeliveryMode @default(own)
+  /// Kill switch: off means "own riders", whatever `mode` says.
+  isEnabled Boolean          @default(false)
+
+  /// Delhivery vehicleMode: 2-wheeler, 3-wheeler, mini-3w, tata-ace, 8ft-pickup.
+  vehicleMode        String             @default("2-wheeler") @db.VarChar(20)
+  /// Minutes to wait for a rider before applying `onNoRider`.
+  assignTimeoutMin   Int                @default(10)
+  onNoRider          NoRiderPolicy      @default(notify_admin)
+  confirmPolicy      RiderConfirmPolicy @default(prep_aligned)
+  /// Prep time assumed when timing the rider release under prep_aligned.
+  defaultPrepMinutes Int                @default(15)
+  /// Quotes above this are refused (₹). Null = no cap.
+  maxFare            Decimal?           @db.Decimal(10, 2)
+  /// Quote at checkout so an address the provider cannot serve is refused
+  /// before the customer pays.
+  checkServiceability Boolean           @default(true)
+  /// Ask the rider for an OTP at pickup. Needs the restaurant to see the code.
+  pickupOtpEnabled   Boolean            @default(false)
+
+  updatedByAdminId String?  @db.VarChar(24)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  zone FoodZone @relation(fields: [zoneId], references: [id], onDelete: Cascade)
+
+  @@map("food_zone_delivery_configs")
+}
+
+/// One attempt to have a third party deliver an order. An order can have more
+/// than one (a cancelled attempt, then a retry); at most one is `active`.
+model FoodDeliveryShipment {
+  id       String           @id @default(dbgenerated("encode(gen_random_bytes(12), 'hex')")) @db.VarChar(24)
+  orderId  String           @db.VarChar(24)
+  provider DeliveryProvider @default(delhivery)
+
+  /// The provider's order id (Delhivery CRN…). Null until create succeeds.
+  providerOrderId String? @unique @db.VarChar(64)
+  /// Provider order state (creating, created, assigned, inProgress, delivered, cancelled)
+  status           String  @default("creating") @db.VarChar(32)
+  /// Provider fulfilment state (pending, searching_for_agent, agent_assigned, at_pickup,
+  /// out_for_delivery, at_delivery, order_delivered, cancelled)
+  fulfilmentStatus String  @default("pending") @db.VarChar(40)
+  nextDestination  String? @db.VarChar(20)
+  active           Boolean @default(true)
+
+  vehicleMode String   @default("2-wheeler") @db.VarChar(20)
+  quotedFare  Decimal? @db.Decimal(10, 2)
+  finalFare   Decimal? @db.Decimal(10, 2)
+  pickupOtp   String?  @db.VarChar(8)
+  dropOtp     String?  @db.VarChar(8)
+
+  readyToShip  Boolean   @default(false)
+  /// When the rider should be released (prep_aligned). The scheduler confirms then.
+  confirmDueAt DateTime?
+  confirmedAt  DateTime?
+
+  riderName       String?   @db.VarChar(120)
+  riderPhone      String?   @db.VarChar(20)
+  vehicleNumber   String?   @db.VarChar(30)
+  vehicleType     String?   @db.VarChar(30)
+  riderLat        Float?
+  riderLng        Float?
+  riderLocationAt DateTime?
+  trackingUrl     String?
+
+  cancelledAt        DateTime?
+  cancellationReason String?
+  /// Why create failed, or why we gave up on this attempt.
+  failureReason      String?
+
+  lastSyncedAt DateTime?
+  lastEventAt  DateTime?
+  lastPayload  Json?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  order  FoodOrder                   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  events FoodDeliveryProviderEvent[]
+
+  @@index([orderId, createdAt(sort: Desc)])
+  @@index([active, lastSyncedAt])
+  @@index([active, readyToShip, confirmDueAt])
+  @@map("food_delivery_shipments")
+}
+
+/// Every webhook / poll payload received, kept for audit and de-duplication.
+model FoodDeliveryProviderEvent {
+  id               String           @id @default(dbgenerated("encode(gen_random_bytes(12), 'hex')")) @db.VarChar(24)
+  shipmentId       String?          @db.VarChar(24)
+  provider         DeliveryProvider @default(delhivery)
+  providerOrderId  String?          @db.VarChar(64)
+  /// webhook | poll
+  source           String           @db.VarChar(16)
+  fulfilmentStatus String?          @db.VarChar(40)
+  /// Whether this event moved the shipment forward (false = duplicate/stale).
+  applied          Boolean          @default(false)
+  payload          Json
+  createdAt        DateTime         @default(now())
+
+  shipment FoodDeliveryShipment? @relation(fields: [shipmentId], references: [id], onDelete: SetNull)
+
+  @@index([providerOrderId, createdAt(sort: Desc)])
+  @@index([shipmentId, createdAt(sort: Desc)])
+  @@map("food_delivery_provider_events")
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

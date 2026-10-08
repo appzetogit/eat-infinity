@@ -121,6 +121,9 @@ export function toOrder(row) {
             }
         },
 
+        /** 'own' (our riders) or 'delhivery'; see externalDelivery for the latter. */
+        deliveryProvider: row.deliveryProvider || 'own',
+
         dispatch: {
             modeAtCreation: 'auto',
             status: row.dispatchStatus,
